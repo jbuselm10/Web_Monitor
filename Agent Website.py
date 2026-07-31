@@ -314,6 +314,13 @@ def noon_check_enabled() -> bool:
     return _env_flag("NOON_CHECK_ENABLED", "true")
 
 
+def scheduled_checks_enabled() -> bool:
+    """Set ENABLE_SCHEDULED_CHECKS=false when scheduled checks run elsewhere
+    (e.g. a GreenGeeks cron job calling cron_check.py), so this local bot only
+    handles on-demand messages and doesn't send duplicate alerts."""
+    return _env_flag("ENABLE_SCHEDULED_CHECKS", "true")
+
+
 def morning_check_time() -> tuple[int, int]:
     hour = int(os.environ.get("MORNING_CHECK_HOUR", str(DEFAULT_MORNING_CHECK_HOUR)))
     minute = int(
@@ -846,6 +853,13 @@ async def _start_background_loops(application: Application) -> None:
 
 
 async def post_init(application: Application) -> None:
+    if not scheduled_checks_enabled():
+        print(
+            "Scheduled checks disabled locally (ENABLE_SCHEDULED_CHECKS=false) — "
+            "handled elsewhere (e.g. GreenGeeks cron_check.py). This bot only "
+            "responds to on-demand messages."
+        )
+        return
     print(
         f"Auto checkall: {format_auto_check_schedule_line()}, "
         f"enabled={auto_check_enabled()}"
