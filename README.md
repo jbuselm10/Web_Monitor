@@ -67,10 +67,14 @@ confirmed working, so you don't get duplicate alerts from both places.
    ```bash
    pip install -r requirements-cron.txt
    ```
-4. Set secrets as environment variables in the cPanel Python App's
-   configuration (or upload a `.env` with the same keys as `.env.example`):
-   `TELEGRAM_BOT_TOKEN`, `EMAIL_ALERTS_ENABLED`, `SMTP_HOST`, `SMTP_PORT`,
-   `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `ALERT_EMAIL_SUBJECT`.
+4. Upload a `.env` file (same keys as `.env.example`) into the app root and
+   `chmod 600` it. Cron jobs run outside Phusion Passenger, so environment
+   variables set in the Setup Python App UI are **not** visible to them —
+   Passenger only injects those for HTTP requests to the app URL. The script
+   loads `.env` from its own directory, so a plain uploaded file is what works.
+   Required keys: `TELEGRAM_BOT_TOKEN`, `EMAIL_ALERTS_ENABLED`, `SMTP_HOST`,
+   `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`,
+   `ALERT_EMAIL_SUBJECT`.
 5. In cPanel → Advanced → **Cron Jobs**, create one job per schedule, using
    the venv's Python interpreter path shown by Setup Python App:
    ```bash

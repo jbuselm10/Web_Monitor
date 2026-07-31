@@ -26,13 +26,15 @@ import certifi
 import requests
 from dotenv import load_dotenv
 
-load_dotenv()
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Absolute path so cron works regardless of the working directory it runs in.
+load_dotenv(os.path.join(_SCRIPT_DIR, ".env"))
 
 DEFAULT_TIMEOUT_SEC = 15
 USER_AGENT = "WebsiteHealthAgent/1.0"
 SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 MAX_URL_FILE_BYTES = 100_000
-_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_URL_LIST_FILE = os.path.join(_SCRIPT_DIR, "urls.txt")
 NOTIFY_CHATS_FILE = os.path.join(_SCRIPT_DIR, "notify_chats.txt")
 DEFAULT_EMAIL_RECIPIENTS_FILE = os.path.join(_SCRIPT_DIR, "email_recipients.txt")
