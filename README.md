@@ -55,39 +55,38 @@ If you keep the local bot running too (e.g. for instant on-demand checks),
 set `ENABLE_SCHEDULED_CHECKS=false` in its local `.env` once GreenGeeks is
 confirmed working, so you don't get duplicate alerts from both places.
 
+`cron_check.py` uses only the Python standard library, so there is no
+virtualenv to create and nothing to `pip install` — cron calls the system
+`python3` directly. You do not need cPanel's "Setup Python App" at all.
+
 ### Setup steps
 
-1. In cPanel, use **Setup Python App** to create a new Python app (this gives
-   you an isolated virtualenv and a Python interpreter path).
-2. Upload these files to the app's directory (via File Manager, FTP, or
-   `git clone` if SSH is enabled): `cron_check.py`, `requirements-cron.txt`,
-   `urls.txt`, `email_recipients.txt`, `notify_chats.txt`.
-3. Activate the app's virtualenv (cPanel shows the exact activation command)
-   and install dependencies:
-   ```bash
-   pip install -r requirements-cron.txt
-   ```
-4. Upload a `.env` file (same keys as `.env.example`) into the app root and
-   `chmod 600` it. Cron jobs run outside Phusion Passenger, so environment
-   variables set in the Setup Python App UI are **not** visible to them —
-   Passenger only injects those for HTTP requests to the app URL. The script
-   loads `.env` from its own directory, so a plain uploaded file is what works.
+1. In cPanel → **File Manager**, create a folder in your home directory, e.g.
+   `/home/{user}/webmonitor`.
+2. Upload these files into it: `cron_check.py`, `urls.txt`,
+   `email_recipients.txt`, `notify_chats.txt`.
+3. Upload a `.env` file (same keys as `.env.example`) into the same folder and
+   set its permissions to **600** (File Manager → right-click → Change
+   Permissions). Cron jobs run outside Phusion Passenger, so environment
+   variables set in the Setup Python App UI would **not** be visible to them —
+   Passenger only injects those for HTTP requests. The script loads `.env` from
+   its own directory by absolute path, so an uploaded file is what works.
    Required keys: `TELEGRAM_BOT_TOKEN`, `EMAIL_ALERTS_ENABLED`, `SMTP_HOST`,
    `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`,
    `ALERT_EMAIL_SUBJECT`.
-5. In cPanel → Advanced → **Cron Jobs**, create one job per schedule, using
-   the venv's Python interpreter path shown by Setup Python App:
+4. In cPanel → Advanced → **Cron Jobs**, create one job per schedule:
    ```bash
-   # Every 6 hours at :30 — only alert if something is down
-   cd /home/{user}/web-monitor && /home/{user}/virtualenv/web-monitor/3.x/bin/python cron_check.py --notify-only-on-failure --label "Auto check" >> cron.log 2>&1
+   # Every 6 hours at :30 (minute 30, hour */6) — only alert if something is down
+   cd /home/{user}/webmonitor && /usr/bin/python3 cron_check.py --notify-only-on-failure --label "Auto check" >> cron.log 2>&1
 
-   # Daily at 6:45 AM — always send a full status email
-   cd /home/{user}/web-monitor && /home/{user}/virtualenv/web-monitor/3.x/bin/python cron_check.py --label "Morning check" >> cron.log 2>&1
+   # Daily at 6:45 AM (minute 45, hour 6) — always send a full status email
+   cd /home/{user}/webmonitor && /usr/bin/python3 cron_check.py --label "Morning check" >> cron.log 2>&1
 
-   # Daily at 12:00 PM — only alert if something is down
-   cd /home/{user}/web-monitor && /home/{user}/virtualenv/web-monitor/3.x/bin/python cron_check.py --notify-only-on-failure --label "Noon check" >> cron.log 2>&1
+   # Daily at 12:00 PM (minute 0, hour 12) — only alert if something is down
+   cd /home/{user}/webmonitor && /usr/bin/python3 cron_check.py --notify-only-on-failure --label "Noon check" >> cron.log 2>&1
    ```
-   Replace `{user}` and the Python version path with your actual values from
-   cPanel.
-6. Trigger a run manually (or wait for the next cron tick) and check
-   `cron.log` plus your email/Telegram to confirm alerts arrive.
+   Replace `{user}` with your cPanel username. If `/usr/bin/python3` isn't
+   present, try `/usr/local/bin/python3` or plain `python3`.
+5. To test, temporarily set one job to run every minute, wait, then check
+   `cron.log` in the same folder plus your email/Telegram. Restore the real
+   schedule afterwards.

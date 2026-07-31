@@ -1,6 +1,0 @@
-# Lightweight dependencies for cron_check.py (used on GreenGeeks/cron hosting).
-# The full requirements.txt (with python-telegram-bot) is only needed for the
-# interactive bot running on a local PC.
-requests>=2.31.0
-python-dotenv>=1.0.0
-certifi>=2024.0.0

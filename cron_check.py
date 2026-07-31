@@ -4,9 +4,14 @@ Reads urls.txt, checks every site once, and sends email + Telegram alerts,
 then exits. Intended to be triggered on a schedule by cPanel Cron Jobs
 instead of running as a long-lived process.
 
+Uses only the Python standard library, so it needs no virtualenv and no pip
+install — cron can call the system python3 directly.
+
 Usage:
-    python cron_check.py [--notify-only-on-failure] [--label "Morning check"]
+    python3 cron_check.py [--notify-only-on-failure] [--label "Morning check"]
 """
+
+from __future__ import annotations
 
 import argparse
 import html
@@ -18,26 +23,55 @@ import time
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
-import certifi
-import requests
-from dotenv import load_dotenv
-
-_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# Absolute path so cron works regardless of the working directory it runs in.
-load_dotenv(os.path.join(_SCRIPT_DIR, ".env"))
-
 DEFAULT_TIMEOUT_SEC = 15
 USER_AGENT = "WebsiteHealthAgent/1.0"
-SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 MAX_URL_FILE_BYTES = 100_000
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_URL_LIST_FILE = os.path.join(_SCRIPT_DIR, "urls.txt")
 NOTIFY_CHATS_FILE = os.path.join(_SCRIPT_DIR, "notify_chats.txt")
 DEFAULT_EMAIL_RECIPIENTS_FILE = os.path.join(_SCRIPT_DIR, "email_recipients.txt")
+DEFAULT_ENV_FILE = os.path.join(_SCRIPT_DIR, ".env")
+
+
+def load_env_file(path: str) -> None:
+    """Minimal .env loader. Already-set environment variables take precedence,
+    matching python-dotenv's default behaviour. Inline comments are not
+    stripped, so values may contain '#'."""
+    if not os.path.isfile(path):
+        return
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("export "):
+                line = line[len("export "):].lstrip()
+            key, sep, value = line.partition("=")
+            if not sep:
+                continue
+            key = key.strip()
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+                value = value[1:-1]
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+
+def build_ssl_context() -> ssl.SSLContext:
+    """Prefer certifi's CA bundle when installed, else the system trust store."""
+    try:
+        import certifi
+    except ImportError:
+        return ssl.create_default_context()
+    return ssl.create_default_context(cafile=certifi.where())
+
+
+load_env_file(os.environ.get("ENV_FILE", DEFAULT_ENV_FILE))
+SSL_CONTEXT = build_ssl_context()
 
 
 # =====================================================================
@@ -263,12 +297,22 @@ def load_notify_chat_ids() -> set[int]:
 
 def send_telegram_message(token: str, chat_id: int, text: str) -> None:
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    resp = requests.post(
+    payload = urlencode(
+        {"chat_id": str(chat_id), "text": text[:4000], "parse_mode": "HTML"}
+    ).encode("utf-8")
+    request = Request(
         url,
-        data={"chat_id": chat_id, "text": text[:4000], "parse_mode": "HTML"},
-        timeout=15,
+        data=payload,
+        method="POST",
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": USER_AGENT,
+        },
     )
-    resp.raise_for_status()
+    with urlopen(request, timeout=15, context=SSL_CONTEXT) as response:
+        status = getattr(response, "status", None) or response.getcode()
+        if status != 200:
+            raise RuntimeError(f"Telegram API returned HTTP {status}")
 
 
 def send_telegram_alerts(text: str) -> None:
