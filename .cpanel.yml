@@ -1,0 +1,14 @@
+---
+deployment:
+  tasks:
+    # Copies only the files the cron job needs into the run directory.
+    # .env is never in git and lives only in the run directory, so it is
+    # left untouched by deploys.
+    # If $HOME does not resolve on your host, replace it with the absolute
+    # path, e.g. /home/yourcpaneluser/webmonitor
+    - export DEPLOYPATH=$HOME/webmonitor
+    - /bin/mkdir -p $DEPLOYPATH
+    - /bin/cp cron_check.py $DEPLOYPATH/
+    - /bin/cp urls.txt $DEPLOYPATH/
+    - /bin/cp email_recipients.txt $DEPLOYPATH/
+    - /bin/cp notify_chats.txt $DEPLOYPATH/

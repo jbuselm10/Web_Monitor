@@ -61,10 +61,16 @@ virtualenv to create and nothing to `pip install` — cron calls the system
 
 ### Setup steps
 
-1. In cPanel → **File Manager**, create a folder in your home directory, e.g.
-   `/home/{user}/webmonitor`.
-2. Upload these files into it: `cron_check.py`, `urls.txt`,
-   `email_recipients.txt`, `notify_chats.txt`.
+1. In cPanel → **Git™ Version Control**, clone
+   `https://github.com/jbuselm10/Web_Monitor.git` into a **non-web-accessible**
+   staging path such as `/home/{user}/repos/Web_Monitor`. Never clone into
+   `public_html` or a subdomain document root — an exposed `.git` directory
+   lets anyone reconstruct your source.
+2. Open **Manage** on that repo → **Pull or Deploy** → **Deploy HEAD Commit**.
+   The [.cpanel.yml](.cpanel.yml) in this repo copies only the four files cron
+   needs (`cron_check.py`, `urls.txt`, `email_recipients.txt`,
+   `notify_chats.txt`) into `/home/{user}/webmonitor`, creating it if needed.
+   To update later: **Update from Remote**, then **Deploy HEAD Commit** again.
 3. Upload a `.env` file (same keys as `.env.example`) into the same folder and
    set its permissions to **600** (File Manager → right-click → Change
    Permissions). Cron jobs run outside Phusion Passenger, so environment
@@ -73,7 +79,8 @@ virtualenv to create and nothing to `pip install` — cron calls the system
    its own directory by absolute path, so an uploaded file is what works.
    Required keys: `TELEGRAM_BOT_TOKEN`, `EMAIL_ALERTS_ENABLED`, `SMTP_HOST`,
    `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`,
-   `ALERT_EMAIL_SUBJECT`.
+   `ALERT_EMAIL_SUBJECT`. Deploys never overwrite it, since `.cpanel.yml`
+   only copies the four tracked files.
 4. In cPanel → Advanced → **Cron Jobs**, create one job per schedule:
    ```bash
    # Every 6 hours at :30 (minute 30, hour */6) — only alert if something is down
